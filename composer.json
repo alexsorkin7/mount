@@ -1,0 +1,19 @@
+{
+    "name": "als/mount",
+    "description": "mount php code with shortcuts",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Akex Sorkin",
+            "email": "Alesorkin1980@gmail.com"
+        }
+    ],
+    "minimum-stability": "beta",
+    "autoload":{
+        "psr-4": {
+            "RandomQuotes\\":"src/"
+        }
+    },
+    "require": {}
+}
