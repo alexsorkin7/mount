@@ -12,7 +12,7 @@
     "minimum-stability": "beta",
     "autoload":{
         "psr-4": {
-            "RandomQuotes\\":"src/"
+            "App\\":""
         }
     },
     "require": {}
