@@ -1,14 +1,14 @@
 <?php
+namespace Also;
 
 Class Mount {
-    public $ext = 'php';
+    public $ext = 'mount';
     public $variables = [];
     public $viewPath = __DIR__.'/views';
     public $bind = false;
 
-    function __construct($viewPath, $ext = 'php') {
+    function __construct($viewPath) {
         if(isset($viewPath)) $this->viewPath = $viewPath;
-        if(isset($ext)) $this->ext = $ext;
     }
 
     public function mount($route,$variables = [],$bind = false) {
