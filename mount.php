@@ -12,6 +12,7 @@ Class Mount {
     }
 
     public function mount($route,$variables = [],$bind = false) {
+        // $variables = $this->getGlobals($variables);
         if(isset($bind)) $this->bind = $bind;
         $string = $this->getFile($route);
         if(strpos($string,'@extends') !== false) $string = $this->extends($string);
@@ -19,8 +20,9 @@ Class Mount {
         if(strpos($string,'@foreach') !== false) $string = $this->getFors($string,'@foreach','@endforeach');
         if(strpos($string,'@for') !== false) $string = $this->getFors($string,'@for','@endfor');
         if(strpos($string,'@if') !== false) $string = $this->getIfs($string);
-        $string = $this->vars($string);
+        if(strpos($string,'@iferror') !== false) $string = $this->ifError($string);
         // if(string.includes('@iferror')) string = this.ifError(string,variables)
+        $string = $this->vars($string);
         // if(this.bind) string = this.bindVar(string)
         
         $stingVariables = '<?php 
@@ -32,6 +34,17 @@ Class Mount {
         ';
         // $this->toFile($stingVariables.$string);
         return eval( '?>' .$stingVariables. $string );
+    }
+
+    private function getGlobals($vars) {
+        $exceptions = ['_COOKIE','_FILES','argv','phpPath','path','GLOBALS','_REQUEST','_SERVER','_SESSION','__composer_autoload_files'];
+        foreach ($GLOBALS as $key => $value) {
+            if(!in_array($key,$exceptions)) {
+                // echo gettype($value).'   '.$key.'   ';
+                $vars[$key] = $value;
+            }
+        }
+        return $vars;
     }
 
     private function getFile($route) {
@@ -117,12 +130,25 @@ Class Mount {
         return $string;
     }
 
+    private function ifError($string) {
+        // $pattern = '/@iferror\\s*?\\(.*\\)/';
+        // preg_match_all($pattern,$string,$sections);
+        // foreach ($sections[0] as $section) {
+        //     $array = explode('(',$section);
+        //     // pre($array);
+        // }
+
+        return $string;
+    }
+
     public function vars($string) {
         $pattern = '/\\@\\w*(\\[.*?\\])*/';
         preg_match_all($pattern,$string,$sections);
         foreach ($sections[0] as $section) {
             $expr = str_replace('@','$',$section);
-            $string = str_replace($section,"<?php echo $expr; ?>",$string);
+            $string = str_replace($section,"<?php 
+            if(isset($expr)) echo $expr; 
+            ?>",$string);
         }
         return $string;
     }
@@ -132,5 +158,6 @@ Class Mount {
         fwrite($file,$string);
         fclose($file);
     }
+
 }
 ?>
