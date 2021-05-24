@@ -13,6 +13,8 @@ Class Mount {
 
     public function mount($route,$variables = [],$bind = false) {
         // $variables = $this->getGlobals($variables);
+        $this->variables = $variables;
+        
         if(isset($bind)) $this->bind = $bind;
         $string = $this->getFile($route);
         if(strpos($string,'@extends') !== false) $string = $this->extends($string);
@@ -21,19 +23,28 @@ Class Mount {
         if(strpos($string,'@for') !== false) $string = $this->getFors($string,'@for','@endfor');
         if(strpos($string,'@if') !== false) $string = $this->getIfs($string);
         if(strpos($string,'@iferror') !== false) $string = $this->ifError($string);
-        // if(string.includes('@iferror')) string = this.ifError(string,variables)
-        $string = $this->vars($string);
-        // if(this.bind) string = this.bindVar(string)
-        
-        $stingVariables = '<?php 
-        ';
+        if(strpos($string,'{{') !== false) $string = $this->out($string);
+            // if(string.includes('@iferror')) string = this.ifError(string,variables)
         foreach ($variables as $key => $value) {
-            $stingVariables .=  ("$$key = ".var_export($value,true).";");
+            if(gettype($value) == 'object') $variables[$key] = (array)$value;
         }
-        $stingVariables .= '?>
-        ';
-        // $this->toFile($stingVariables.$string);
-        return eval( '?>' .$stingVariables. $string );
+        extract($variables);
+        $string = $this->vars($string);
+            // if(this.bind) string = this.bindVar(string)
+            
+        return eval('?>'.$string);
+    }
+
+    private function out($string) {
+        $scripts = explode('{{',$string);
+        foreach ($scripts as $key => $script) {
+            if(strpos($script,'}}') !== false) {
+                $script = explode('}}',$script)[0];
+                $result = "<?php echo ".$script."; ?>";
+                $string = str_replace('{{'.$script.'}}',$result,$string);
+            }
+        }
+        return $string;
     }
 
     private function getGlobals($vars) {
@@ -146,9 +157,15 @@ Class Mount {
         preg_match_all($pattern,$string,$sections);
         foreach ($sections[0] as $section) {
             $expr = str_replace('@','$',$section);
-            $string = str_replace($section,"<?php 
-            if(isset($expr)) echo $expr; 
-            ?>",$string);
+            preg_match_all("/#$section/",$string,$matches);
+            if(count($matches[0]) == 0) {
+                $replace = "<?php 
+                if(isset($expr)) echo $expr;
+                ?>";
+                $string = str_replace($section,$replace,$string);
+            } else {
+                $string = str_replace('#'.$section,$section,$string);
+            }
         }
         return $string;
     }
