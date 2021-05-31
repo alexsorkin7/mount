@@ -12,9 +12,6 @@ Class Mount {
     }
 
     public function mount($route,$variables = [],$bind = false) {
-        // $variables = $this->getGlobals($variables);
-        $this->variables = $variables;
-        
         if(isset($bind)) $this->bind = $bind;
         $string = $this->getFile($route);
         if(strpos($string,'@extends') !== false) $string = $this->extends($string);
@@ -23,37 +20,22 @@ Class Mount {
         if(strpos($string,'@for') !== false) $string = $this->getFors($string,'@for','@endfor');
         if(strpos($string,'@if') !== false) $string = $this->getIfs($string);
         if(strpos($string,'@iferror') !== false) $string = $this->ifError($string);
-        if(strpos($string,'{{') !== false) $string = $this->out($string);
-            // if(string.includes('@iferror')) string = this.ifError(string,variables)
-        foreach ($variables as $key => $value) {
-            if(gettype($value) == 'object') $variables[$key] = (array)$value;
-        }
-        extract($variables);
         $string = $this->vars($string);
-            // if(this.bind) string = this.bindVar(string)
-            
-        return eval('?>'.$string);
-    }
-
-    private function out($string) {
-        $scripts = explode('{{',$string);
-        foreach ($scripts as $key => $script) {
-            if(strpos($script,'}}') !== false) {
-                $script = explode('}}',$script)[0];
-                $result = "<?php echo ".$script."; ?>";
-                $string = str_replace('{{'.$script.'}}',$result,$string);
-            }
+       
+        $stingVariables = '<?php 
+        ';
+        foreach ($variables as $key => $value) {
+            $stingVariables .=  ("$$key = ".var_export($value,true).";");
         }
-        return $string;
+        $stingVariables .= '?>
+        ';
+        return eval( '?>' .$stingVariables. $string );
     }
 
     private function getGlobals($vars) {
         $exceptions = ['_COOKIE','_FILES','argv','phpPath','path','GLOBALS','_REQUEST','_SERVER','_SESSION','__composer_autoload_files'];
         foreach ($GLOBALS as $key => $value) {
-            if(!in_array($key,$exceptions)) {
-                // echo gettype($value).'   '.$key.'   ';
-                $vars[$key] = $value;
-            }
+            if(!in_array($key,$exceptions)) $vars[$key] = $value;
         }
         return $vars;
     }
@@ -69,12 +51,14 @@ Class Mount {
 
     private function extends($string) {
         $pattern = '/\\@extends\\s*?\\(.*\\)/';
+        
         preg_match($pattern, $string,$matches);
         $layout = str_replace('@extends(','',$matches[0]);
         $layout = str_replace(')','',$layout);
         $layout = $this->getFile($layout);
         if($layout == null) return $string;
-        $pattern = '/\\@section\\s*?\\(.*\\)(.|\\n)*?\\@endsection/';
+
+        $pattern = '/\\@section\\s*?\\(.*\\)(.|\\n\\s*)*?\\@endsection/';
         preg_match_all($pattern,$string,$sections);
         foreach ($sections[0] as $section) {
             preg_match('/\\@section\\s*?\\(.*\\)/',$section,$sectionStart);
@@ -141,39 +125,16 @@ Class Mount {
         return $string;
     }
 
-    private function ifError($string) {
-        // $pattern = '/@iferror\\s*?\\(.*\\)/';
-        // preg_match_all($pattern,$string,$sections);
-        // foreach ($sections[0] as $section) {
-        //     $array = explode('(',$section);
-        //     // pre($array);
-        // }
-
-        return $string;
-    }
-
     public function vars($string) {
         $pattern = '/\\@\\w*(\\[.*?\\])*/';
         preg_match_all($pattern,$string,$sections);
         foreach ($sections[0] as $section) {
             $expr = str_replace('@','$',$section);
-            preg_match_all("/#$section/",$string,$matches);
-            if(count($matches[0]) == 0) {
-                $replace = "<?php 
-                if(isset($expr)) echo $expr;
-                ?>";
-                $string = str_replace($section,$replace,$string);
-            } else {
-                $string = str_replace('#'.$section,$section,$string);
-            }
+            $string = str_replace($section,"<?php 
+            if(isset($expr)) echo $expr; 
+            ?>",$string);
         }
         return $string;
-    }
-
-    private function toFile($string) {
-        $file = fopen("test.php", "w");
-        fwrite($file,$string);
-        fclose($file);
     }
 
 }
